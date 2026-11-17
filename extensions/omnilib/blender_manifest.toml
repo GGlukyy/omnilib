@@ -1,0 +1,24 @@
+schema_version = "1.0.0"
+
+id = "omnilib"
+version = "1.0.0"
+name = "omnilib CC0 Game Assets"
+tagline = "Kenney, Quaternius and other CC0 game assets, rebuilt weekly"
+maintainer = "GGlukyy"
+type = "asset-library"
+
+website = "https://github.com/GGlukyy/omnilib"
+tags = ["Model"]
+
+blender_version_min = "5.3.0"
+
+license = [
+  "SPDX:CC0-1.0",
+]
+
+copyright = [
+  "2026 omnilib contributors",
+]
+
+[asset_library]
+remote_url = "https://gglukyy.github.io/omnilib/library/"

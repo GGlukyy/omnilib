@@ -1,14 +1,16 @@
-# Phase 0: packs/ -> library/ -> listing -> local server
-# Usage:  .\scripts\build.ps1 -Blender "C:\Program Files\Blender Foundation\Blender 5.3\blender.exe"
+# packs/ -> library/ -> listing -> local server, with an installed Blender instead of the bpy module.
+# Downloads are done by scripts/pipeline.py --no-build (any Python 3.11+).
+# Usage:  .\scripts\build.ps1 -Blender "C:\Program Files\Blender Foundation\Blender 5.3\blender.exe" [-Public]
 param(
     [string]$Blender = "blender",
-    [string]$Author = "Kenney",
+    [switch]$Public,
     [int]$Port = 8000
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
+$flags = @(); if ($Public) { $flags += "--public" }
 
-& $Blender -b --factory-startup -P "$root\scripts\mark_assets.py" -- "$root\packs" "$root\library" --author $Author
+& $Blender -b --factory-startup -P "$root\scripts\mark_assets.py" -- "$root\packs" "$root\library" @flags
 Copy-Item "$root\library-meta.json" "$root\library\_asset-library-meta.json" -Force
 & $Blender -b -c asset_listing generate "$root\library"
 

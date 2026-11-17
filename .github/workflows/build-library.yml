@@ -1,0 +1,87 @@
+# Fetch subscribed sources, build the public (CC0-only) library and the Blender extensions repository,
+# publish both on GitHub Pages:  <pages>/index.json (Get Extensions repo) + <pages>/library/ (remote asset library).
+name: build-library
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"  # Mondays 03:17 UTC
+
+concurrency: build-library
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    services:
+      asset-server:  # sources/asset_server.py; if it is down the adapter only warns
+        image: ghcr.io/arielshad/3d-asset-server
+        ports: ["8787:8787"]
+        env:
+          ASSET_SERVER_TELEMETRY: "0"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      # packs/ = download cache, library/ = built .blend + thumbnails (incremental rebuilds)
+      - uses: actions/cache@v6
+        with:
+          path: |
+            packs
+            library
+          key: library-v2-${{ github.run_id }}
+          restore-keys: library-v2-  # bump to start from an empty cache
+
+      - name: Install Blender as a Python module
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq libxrender1 libxxf86vm1 libxfixes3 libxi6 libxkbcommon0 libsm6 libgl1 libegl1
+          pip install bpy==5.3.0
+
+      - name: Fetch + build (CC0 only)
+        env:
+          POLY_PIZZA_KEY: ${{ secrets.POLY_PIZZA_KEY }}  # optional: without it Poly Pizza is skipped
+          OMNILIB_ASSET_SERVER: http://localhost:8787
+        run: python scripts/pipeline.py --public
+
+      # extensions/<id>/blender_manifest.toml -> zips + index.json, built by Blender's own extension CLI
+      # (bl_pkg/cli/blender_ext.py ships inside the bpy wheel, stdlib only)
+      - name: Build site (extensions repository + library)
+        run: |
+          trap 'echo "::error::site build failed: $BASH_COMMAND"' ERR
+          # find_spec, not `import bpy`: importing Blender prints to stdout and would pollute $EXT
+          BPY=$(python -c "import importlib.util; print(importlib.util.find_spec('bpy').submodule_search_locations[0])")
+          EXT="$BPY/5.3/scripts/addons_core/bl_pkg/cli/blender_ext.py"
+          test -f "$EXT"
+          mkdir site
+          for d in extensions/*/; do python "$EXT" build --source-dir "$d" --output-dir site; done
+          python "$EXT" server-generate --repo-dir site --html
+          cp -r library site/library
+          find site -name '*.blend1' -delete
+          # GitHub Pages limits: 1 GB per site, 100 MB per file
+          big=$(find site -type f -size +100M)
+          [ -z "$big" ] || { echo "::error::files over 100 MB: $big"; exit 1; }
+          size=$(du -sb site | cut -f1)
+          echo "::notice::site: $((size / 1000000)) MB"
+          [ "$size" -lt 1000000000 ] || { echo "::error::site is over 1 GB"; exit 1; }
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  deploy:  # only master publishes; branches just build the site artifact
+    if: github.ref == 'refs/heads/master'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v5
