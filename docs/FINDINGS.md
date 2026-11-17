@@ -37,3 +37,12 @@
   and skips assets over 25 MB (GitHub Pages: 100 MB per file, 1 GB per site). Result: 10 assets, 14.8 MB.
 - CI verified end-to-end on `ubuntu-latest` (run 4 of `phase-1`): service container, bpy build, listing,
   artifact, all green without `POLY_PIZZA_KEY` (Poly Pizza skipped with a warning).
+- **Extensions repository** (verified in `bl_pkg/cli/blender_ext.py`, 5.3): type `asset-library` needs
+  `[asset_library] remote_url = "http(s)://..."` (optional `[asset_library.auth]`, method `TOKEN`).
+  `id` must be a Python identifier (no `-`, no `__`). Valid tags: Brush, Compositor, Geometry Nodes, Hair,
+  Material, Model, Shading, World. `license = ["SPDX:CC0-1.0"]`. `server-generate` drops `[asset_library]` from
+  `index.json`: Blender reads it from the downloaded zip and registers the remote library on install.
+  The zip only contains `blender_manifest.toml` (421 bytes). `blender_ext.py` is stdlib-only and ships in the bpy wheel.
+- Poly Haven Lite (`poly_haven`) and ambientCG (`ambientCG`) already exist as asset-library extensions on
+  extensions.blender.org → not duplicated in our repository.
+- GitHub Pages via `actions/deploy-pages` does not run Jekyll, so `_v1/` and `_asset-library-meta.json` are served.

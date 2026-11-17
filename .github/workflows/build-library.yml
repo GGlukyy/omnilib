@@ -1,4 +1,5 @@
-# Fetch subscribed sources and build the public (CC0-only) library. No hosting yet: result is an artifact.
+# Fetch subscribed sources, build the public (CC0-only) library and the Blender extensions repository,
+# publish both on GitHub Pages:  <pages>/index.json (Get Extensions repo) + <pages>/library/ (remote asset library).
 name: build-library
 
 on:
@@ -48,10 +49,37 @@ jobs:
           OMNILIB_ASSET_SERVER: http://localhost:8787
         run: python scripts/pipeline.py --public
 
-      - uses: actions/upload-artifact@v7
+      # extensions/<id>/blender_manifest.toml -> zips + index.json, built by Blender's own extension CLI
+      # (bl_pkg/cli/blender_ext.py ships inside the bpy wheel, stdlib only)
+      - name: Build site (extensions repository + library)
+        run: |
+          EXT=$(python -c "import bpy, pathlib; print(next(pathlib.Path(bpy.__file__).parent.rglob('bl_pkg/cli/blender_ext.py')))")
+          mkdir site
+          for d in extensions/*/; do python "$EXT" build --source-dir "$d" --output-dir site; done
+          python "$EXT" server-generate --repo-dir site --html
+          cp -r library site/library
+          find site -name '*.blend1' -delete
+          # GitHub Pages limits: 1 GB per site, 100 MB per file
+          big=$(find site -type f -size +100M)
+          [ -z "$big" ] || { echo "::error::files over 100 MB: $big"; exit 1; }
+          size=$(du -sb site | cut -f1)
+          echo "::notice::site: $((size / 1000000)) MB"
+          [ "$size" -lt 1000000000 ] || { echo "::error::site is over 1 GB"; exit 1; }
+
+      - uses: actions/upload-pages-artifact@v5
         with:
-          name: omnilib-library
-          path: |
-            library
-            !library/**/*.blend1
-          retention-days: 14
+          path: site
+
+  deploy:  # only master publishes; branches just build the site artifact
+    if: github.ref == 'refs/heads/master'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v5

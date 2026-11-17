@@ -2,7 +2,17 @@
 
 Turn any 3D asset source into a native Blender 5.3 online asset library.
 
-## Use the library (already built)
+## Install in Blender 5.3 (recommended)
+1. Preferences → **System**: enable **Allow Online Access**.
+2. Preferences → **Get Extensions** → **Repositories** (▾ top right) → **+ Add Remote Repository** →
+   `https://gglukyy.github.io/omnilib/`
+3. Get Extensions → search **omnilib** → **Install**. The library appears in the Asset Browser
+   (catalogs `<source>/<pack>`), rebuilt weekly. CC0 only.
+
+Poly Haven Lite and ambientCG are not in this repository: install them from Blender's official
+repository (extensions.blender.org, enabled by default), search "Poly Haven" / "ambientCG".
+
+## Use a locally built library
 1. Open PowerShell in this folder and run:
    ```
    cd library
@@ -13,7 +23,7 @@ Turn any 3D asset source into a native Blender 5.3 online asset library.
 3. Preferences → **Asset Libraries** → add an online library with URL `http://127.0.0.1:8000/`.
 4. Asset Browser → pick the library → catalogs are `<source>/<pack>` → drag an asset into the scene.
 
-A ready CC0 build is also produced weekly by GitHub Actions (`build-library` workflow → artifact `omnilib-library`).
+The weekly GitHub Actions build (`build-library`) publishes the same CC0 library at `https://gglukyy.github.io/omnilib/library/`.
 
 ## Sources (`subscriptions.json`)
 | Source | Subscription | Needs |
@@ -33,5 +43,8 @@ python scripts/build.py --serve       # build only, then serve
 ```
 With an installed Blender instead of `bpy`: `python scripts/pipeline.py --no-build`, then
 `powershell -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Blender "<path to blender.exe>"`.
+
+Extensions repository: `extensions/<id>/blender_manifest.toml`, built in CI by Blender's own
+`blender_ext.py build` + `server-generate`.
 
 Rules for AI agents: `AGENTS.md`. Plan: `docs/MILESTONES.md`. What we learned: `docs/FINDINGS.md`.
