@@ -3,8 +3,6 @@ library. When a placeholder is dropped into the scene, a handler downloads the r
 the same transform (placeholder = Empty with a preview and the item stored in a custom property)."""
 
 import json
-import shutil
-import tempfile
 import threading
 from pathlib import Path
 
@@ -16,10 +14,10 @@ PROP = "omnilib_item"  # JSON of the search item, set on the placeholder
 LIB_NAME = "omnilib search results"
 CATALOG_FILE = "results.blend"
 
-_keys_getter = lambda: {}  # set by register(); returns the keys dict from the add-on preferences
+_settings = lambda: ({}, ".", "any")  # set by register(): (keys, cache dir, wanted format) from prefs / panel
 _jobs = {}  # placeholder object name -> {"thread", "result", "tmp"}
 _queue = []  # placeholder names seen by the depsgraph handler, picked up by the timer
-status = {}  # item id -> "downloading" | "done" | "error: ..."  (shown in the panel)
+status = {}  # providers.item_key(item) -> "downloading" | "cached" | "done" | "error: ..."  (shown in the panel)
 
 
 # --- placeholder library ----------------------------------------------------------------------------
@@ -71,6 +69,22 @@ def remove_library():
         libs.remove(libs[LIB_NAME])
 
 
+def spawn_placeholder(item, location):
+    """Click-to-import: same path as a drop. Creates the placeholder; the depsgraph handler starts the download."""
+    ob = bpy.data.objects.new(f'{item["title"]} [{item["source"]}]', None)
+    ob.empty_display_type, ob.empty_display_size = "CUBE", 0.5
+    ob.location = location
+    ob[PROP] = json.dumps({k: v for k, v in item.items() if k != "thumb_path"})
+    bpy.context.collection.objects.link(ob)
+    return ob
+
+
+def _redraw():
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            area.tag_redraw()
+
+
 # --- swap placeholder for the real model ------------------------------------------------------------
 
 def _on_depsgraph(scene, depsgraph):
@@ -89,48 +103,47 @@ def _start(name):
     if ob is None:
         return
     item = json.loads(ob[PROP])
-    job = {"result": None, "tmp": tempfile.mkdtemp(prefix="omnilib_"), "item": item}
-    keys = _keys_getter()
+    job = {"result": None, "item": item}
+    keys, cache_dir, fmt = _settings()
 
     def work():
         try:
-            job["result"] = ("ok", providers.download(item, job["tmp"], keys))
+            job["result"] = ("ok",) + providers.download(item, cache_dir, keys, fmt)
         except Exception as e:  # message only: never echo request details
-            job["result"] = ("error", providers._err(item["source"], e))
+            job["result"] = ("error", providers.error_text(e))
 
     job["thread"] = threading.Thread(target=work, daemon=True)
     job["thread"].start()
     _jobs[name] = job
-    status[item["id"]] = "downloading"
+    status[providers.item_key(item)] = "downloading"
+    _redraw()
     ob.name = f'{item["title"]} (downloading)'
     _jobs[ob.name] = _jobs.pop(name)
 
 
 def _finish(name, job):
     ob = bpy.data.objects.get(name)
-    kind, value = job["result"]
-    item = job["item"]
+    item, key = job["item"], providers.item_key(job["item"])
+    if ob is None:
+        status.pop(key, None)  # user deleted the placeholder while it was downloading
+        return
+    if job["result"][0] == "error":
+        status[key] = f"error: {job['result'][1]}"
+        ob.name = f'{item["title"]} (FAILED: {job["result"][1]})'
+        return
+    _, path, cached = job["result"]
     try:
-        if ob is None:
-            return  # user deleted the placeholder while it was downloading
-        if kind == "error":
-            status[item["id"]] = f"error: {value}"
-            ob.name = f'{item["title"]} (FAILED: {value})'
-            return
-        try:
-            coll = importer.import_model(value, item)
-        except Exception as e:
-            status[item["id"]] = f"error: import failed ({type(e).__name__})"
-            ob.name = f'{item["title"]} (FAILED: import)'
-            return
-        m = ob.matrix_world.copy()
-        for o in coll.objects:
-            if o.parent is None:
-                o.matrix_world = m @ o.matrix_world
-        bpy.data.objects.remove(ob)
-        status[item["id"]] = "done"
-    finally:
-        shutil.rmtree(job["tmp"], ignore_errors=True)
+        coll = importer.import_model(path, item)
+    except Exception as e:
+        status[key] = f"error: import failed ({type(e).__name__})"
+        ob.name = f'{item["title"]} (FAILED: import)'
+        return
+    m = ob.matrix_world.copy()
+    for o in coll.objects:
+        if o.parent is None:
+            o.matrix_world = m @ o.matrix_world
+    bpy.data.objects.remove(ob)
+    status[key] = "cached" if cached else "done"
 
 
 def _tick():
@@ -140,12 +153,13 @@ def _tick():
         if job["result"] is not None:
             del _jobs[name]
             _finish(name, job)
+    _redraw()
     return 0.3 if (_jobs or _queue) else None
 
 
-def register(keys_getter):
-    global _keys_getter
-    _keys_getter = keys_getter
+def register(settings):
+    global _settings
+    _settings = settings
     if _on_depsgraph not in bpy.app.handlers.depsgraph_update_post:
         bpy.app.handlers.depsgraph_update_post.append(_on_depsgraph)
 
