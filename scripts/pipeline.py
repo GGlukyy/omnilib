@@ -52,3 +52,6 @@ for name, sub in subs.items():
 if not args.no_build:
     flags = [f for f, on in (("--public", args.public), ("--force", args.force)) if on]
     subprocess.run([sys.executable, str(ROOT / "scripts/build.py"), *flags], check=True)
+    index = json.loads((ROOT / "library/_v1/asset-index.json").read_text(encoding="utf-8"))
+    print(f"::notice::library: {index['asset_count']} assets, {index['asset_size_bytes'] / 1e6:.1f} MB, "
+          f"{len(index['catalogs'])} catalogs")

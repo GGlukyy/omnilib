@@ -6,6 +6,7 @@ Server URL: env OMNILIB_ASSET_SERVER (default http://localhost:8787). Only CC0 m
 
 import io
 import os
+import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
@@ -36,9 +37,17 @@ def list(sub):
 
 
 def download(item, dest: Path):
-    url = f"{URL}/v1/assets/{urllib.parse.quote(item['id'], safe=':')}/download?format=glb"
-    with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=300) as r:
-        data, final_url = r.read(), r.geturl()  # 302 to a single file, or a zip with companions
+    base = f"{URL}/v1/assets/{urllib.parse.quote(item['id'], safe=':')}/download?format="
+    for fmt in ("glb", "gltf", "fbx", "obj"):  # sources offer different formats (Poly Haven: no glb)
+        try:
+            with urllib.request.urlopen(urllib.request.Request(base + fmt, headers=UA), timeout=300) as r:
+                data, final_url = r.read(), r.geturl()  # 302 to a single file, or a zip with companions
+            break
+        except urllib.error.HTTPError as e:
+            if e.code != 404:
+                raise
+    else:
+        raise ValueError("no glb/gltf/fbx/obj download")
     name = safe(item["id"])
     if data[:2] == b"PK":
         folder = dest / name

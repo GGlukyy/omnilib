@@ -21,14 +21,14 @@ jobs:
         env:
           ASSET_SERVER_TELEMETRY: "0"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
 
       # packs/ = download cache, library/ = built .blend + thumbnails (incremental rebuilds)
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             packs
@@ -48,7 +48,7 @@ jobs:
           OMNILIB_ASSET_SERVER: http://localhost:8787
         run: python scripts/pipeline.py --public
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: omnilib-library
           path: |
