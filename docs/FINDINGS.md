@@ -49,3 +49,37 @@
 - `import bpy` prints to stdout, so never capture `$(python -c "import bpy; ...")` in shell. Locate the
   package with `importlib.util.find_spec('bpy')` instead (`blender_ext.py` is at
   `bpy/5.3/scripts/addons_core/bl_pkg/cli/blender_ext.py` in the wheel).
+
+## Add-on UX: drag & drop prototype (17. 11. 2026) - verdict: plan A works
+**Tried (plan A):** search results become *placeholder assets* in a temporary local asset library
+(`extensions/omnilib_search/dragdrop.py`). Each placeholder is an Empty marked as asset, with the result's thumbnail
+as asset preview and the result (source, id, title, licence, download URL) as JSON in a custom property. The folder
+is registered through `preferences.filepaths.asset_libraries.new()` with `import_method = "APPEND"`. A
+`depsgraph_update_post` handler notices a new object carrying that property, downloads the model in a thread and a
+timer swaps the placeholder for the imported model (same world matrix, placeholder deleted).
+
+**Verified in Blender 5.3 (live, via MCP):**
+- `bpy.data.libraries.write()` of asset-marked Empties creates a library the Asset Browser lists; custom previews set
+  with `ID.preview_ensure()` + `image_pixels_float` survive the write and show in the browser.
+- Appending a placeholder (what a drop does) triggers the handler; the swapped-in model sits exactly at the
+  placeholder's location / rotation / scale (checked numerically). Failure (HTTP error) leaves the placeholder
+  renamed "... (FAILED: reason)"; deleting the placeholder while downloading cancels the swap.
+- Click-to-import uses the same path (placeholder at the 3D cursor), so there is one download code path.
+
+**Gotchas**
+- `import_method` must be `APPEND`: a *linked* placeholder is library data and can be neither modified nor deleted.
+- The Asset Browser keeps the previously selected catalog id; a new library shows "No items" until the catalog is
+  "All"/"Unassigned" again (test artefact, but users may hit it).
+- `import` is a Python keyword: the operator `omnilib.import` can only be called as `getattr(bpy.ops.omnilib, "import")`.
+- Not verified: a *real mouse drag* (cannot be simulated through MCP). The drop path in Blender's UI appends the
+  asset through the same data API as `wm.append`, so the handler should fire identically. **Needs one manual check.**
+- Plan B (own viewport strip with raycast) was not needed and was not built.
+
+## Add-on filters (unverified API parameters)
+- Sketchfab `animated`, `rigged`, `min_face_count`, `max_face_count`, `license=cc0` are sent as search parameters.
+  The official docs page is a JS Swagger shell and could not be read, so **these names are from memory and
+  unconfirmed** (a wrong name is silently ignored by the API). Verify with a real token before relying on them.
+- Poly Pizza docs URL (`poly.pizza/docs/api`) returns 404; only `License=1` (CC0) is used, as before. Other licence
+  filtering (CC-BY) is done client-side by `providers.license_class()` on the licence string.
+- The format filter is honoured only by 3d-asset-server (glb/gltf/fbx/obj); Poly Pizza and Sketchfab downloads are
+  glTF only, so choosing FBX/OBJ skips them.
