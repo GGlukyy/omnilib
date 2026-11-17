@@ -1,0 +1,4 @@
+packs/
+library/
+*.blend1
+__pycache__/
