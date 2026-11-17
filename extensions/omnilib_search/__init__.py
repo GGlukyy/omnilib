@@ -7,6 +7,7 @@ Keys live in the add-on preferences (password fields, plain text in userpref.ble
 add-on setting). They are only sent to their own service and never printed.
 """
 
+import os
 import shutil
 import tempfile
 import threading
@@ -206,7 +207,7 @@ class OMNILIB_PT_panel(bpy.types.Panel):
         row.label(text=f"{offset // providers.PAGE_SIZE + 1} / {pages}  ({len(items)} results)")
         row.operator("omnilib.page", text="", icon="TRIA_RIGHT").step = 1
         layout.prop(wm, "omnilib_thumb_size", slider=True)
-        layout.label(text="Drag from the Asset Browser", icon="INFO")
+        layout.label(text="Drag from the shelf below the viewport", icon="INFO")
         grid = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=True)
         for n, it in enumerate(shown):
             i = offset + n
@@ -246,8 +247,24 @@ class OMNILIB_PT_filters(bpy.types.Panel):
         layout.label(text="Filters apply to the next search")
 
 
+class OMNILIB_AST_results(bpy.types.AssetShelf):
+    """Search results as a shelf at the bottom of the 3D viewport: drag a preview into the scene."""
+    bl_space_type = "VIEW_3D"
+    bl_idname = "OMNILIB_AST_results"
+    bl_options = {"DEFAULT_VISIBLE"}
+    bl_default_preview_size = 96
+
+    @classmethod
+    def poll(cls, context):
+        return bool(_state["items"]) and context.mode == "OBJECT"
+
+    @classmethod
+    def asset_poll(cls, asset):  # only our placeholders, whichever library the shelf is set to
+        return asset.id_type == "OBJECT" and os.path.normcase(os.path.dirname(asset.full_library_path)) ==             os.path.normcase(os.path.normpath(_library_dir()))
+
+
 classes = (OmnilibPrefs, OMNILIB_OT_search, OMNILIB_OT_import, OMNILIB_OT_page, OMNILIB_OT_clear_cache,
-           OMNILIB_PT_panel, OMNILIB_PT_filters)
+           OMNILIB_PT_panel, OMNILIB_PT_filters, OMNILIB_AST_results)
 
 _wm_props = {
     "omnilib_query": bpy.props.StringProperty(name="Search", default=""),

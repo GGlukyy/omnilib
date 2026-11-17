@@ -83,3 +83,13 @@ timer swaps the placeholder for the imported model (same world matrix, placehold
   filtering (CC-BY) is done client-side by `providers.license_class()` on the licence string.
 - The format filter is honoured only by 3d-asset-server (glb/gltf/fbx/obj); Poly Pizza and Sketchfab downloads are
   glTF only, so choosing FBX/OBJ skips them.
+
+## Add-on: drag from the N panel is impossible, Asset Shelf instead (17. 11. 2026)
+- First manual test: dragging the thumbnail in the N panel does nothing. `template_icon` is only an image; Blender
+  can drag assets only from asset UIs (Asset Browser, Asset Shelf). Needing the Asset Browser was a poor workflow.
+- Fix: `OMNILIB_AST_results`, an `AssetShelf` (4.3+, verified on 5.3) at the bottom of the 3D viewport. `asset_poll`
+  keeps only placeholders from our temp library folder, so the shelf shows exactly the current search results
+  whichever library the shelf is set to. Verified live: 6 placeholders with previews appear in the shelf.
+  Mouse drag from the shelf still needs a manual check (cannot be simulated through MCP).
+- Test hygiene: running a second copy of the module in the same Blender session re-registers the same `bl_idname`s
+  and the asset library name over an installed copy. Disable/enable the add-on (or restart) after such a test.
