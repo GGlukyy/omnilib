@@ -3,6 +3,8 @@ name: build-library
 
 on:
   workflow_dispatch:
+  push:  # TEMP: lets the branch test itself (dispatch needs the file on master). Remove before merge.
+    branches: [phase-1]
   schedule:
     - cron: "17 3 * * 1"  # Mondays 03:17 UTC
 
