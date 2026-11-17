@@ -46,3 +46,6 @@
 - Poly Haven Lite (`poly_haven`) and ambientCG (`ambientCG`) already exist as asset-library extensions on
   extensions.blender.org → not duplicated in our repository.
 - GitHub Pages via `actions/deploy-pages` does not run Jekyll, so `_v1/` and `_asset-library-meta.json` are served.
+- `import bpy` prints to stdout, so never capture `$(python -c "import bpy; ...")` in shell. Locate the
+  package with `importlib.util.find_spec('bpy')` instead (`blender_ext.py` is at
+  `bpy/5.3/scripts/addons_core/bl_pkg/cli/blender_ext.py` in the wheel).
