@@ -1,0 +1,55 @@
+# Fetch subscribed sources and build the public (CC0-only) library. No hosting yet: result is an artifact.
+name: build-library
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"  # Mondays 03:17 UTC
+
+concurrency: build-library
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    services:
+      asset-server:  # sources/asset_server.py; if it is down the adapter only warns
+        image: ghcr.io/arielshad/3d-asset-server
+        ports: ["8787:8787"]
+        env:
+          ASSET_SERVER_TELEMETRY: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # packs/ = download cache, library/ = built .blend + thumbnails (incremental rebuilds)
+      - uses: actions/cache@v4
+        with:
+          path: |
+            packs
+            library
+          key: library-${{ github.run_id }}
+          restore-keys: library-
+
+      - name: Install Blender as a Python module
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq libxrender1 libxxf86vm1 libxfixes3 libxi6 libxkbcommon0 libsm6 libgl1 libegl1
+          pip install bpy==5.3.0
+
+      - name: Fetch + build (CC0 only)
+        env:
+          POLY_PIZZA_KEY: ${{ secrets.POLY_PIZZA_KEY }}  # optional: without it Poly Pizza is skipped
+          OMNILIB_ASSET_SERVER: http://localhost:8787
+        run: python scripts/pipeline.py --public
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: omnilib-library
+          path: |
+            library
+            !library/**/*.blend1
+          retention-days: 14
