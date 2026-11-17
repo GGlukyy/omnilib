@@ -2,3 +2,4 @@ packs/
 library/
 *.blend1
 __pycache__/
+_to_delete/
