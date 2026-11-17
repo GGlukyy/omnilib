@@ -6,6 +6,7 @@ Server URL: env OMNILIB_ASSET_SERVER (default http://localhost:8787). Only CC0 m
 
 import io
 import os
+import shutil
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -17,6 +18,7 @@ from . import UA, get_json, safe, warn, write_meta
 URL = os.environ.get("OMNILIB_ASSET_SERVER", "http://localhost:8787").rstrip("/")
 MODELS = [".glb", ".gltf", ".fbx", ".obj"]
 PER_SEARCH = 24
+RESOLUTION = "1k"  # game assets; Poly Haven default is up to 8k (13 assets = 1.3 GB)
 
 
 def list(sub):
@@ -32,12 +34,13 @@ def list(sub):
         for r in res.get("results", []):
             if "CC0" in ((r.get("license") or {}).get("name") or "").upper():
                 items.append({"id": r["id"], "pack": safe(q), "title": r.get("title"), "page": r.get("url"),
-                              "author": r.get("author") or r["id"].split(":")[0], "catalog": f"asset_server/{safe(q)}"})
+                              "author": r.get("author") or r["id"].split(":")[0], "catalog": f"asset_server/{safe(q)}",
+                              "version": RESOLUTION})
     return items
 
 
 def download(item, dest: Path):
-    base = f"{URL}/v1/assets/{urllib.parse.quote(item['id'], safe=':')}/download?format="
+    base = f"{URL}/v1/assets/{urllib.parse.quote(item['id'], safe=':')}/download?resolution={RESOLUTION}&format="
     for fmt in ("glb", "gltf", "fbx", "obj"):  # sources offer different formats (Poly Haven: no glb)
         try:
             with urllib.request.urlopen(urllib.request.Request(base + fmt, headers=UA), timeout=300) as r:
@@ -51,6 +54,7 @@ def download(item, dest: Path):
     name = safe(item["id"])
     if data[:2] == b"PK":
         folder = dest / name
+        shutil.rmtree(folder, ignore_errors=True)  # drop files of an older download
         zipfile.ZipFile(io.BytesIO(data)).extractall(folder)
         found = [p for p in folder.rglob("*") if p.suffix.lower() in MODELS]
         if not found:
