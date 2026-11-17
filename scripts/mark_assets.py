@@ -19,6 +19,7 @@ IMPORTERS = {
     ".fbx": lambda p: bpy.ops.import_scene.fbx(filepath=p),
     ".obj": lambda p: bpy.ops.wm.obj_import(filepath=p),
 }
+PREFERENCE = [".glb", ".gltf", ".fbx", ".obj"]
 
 
 def parse_args():
@@ -84,7 +85,16 @@ def convert(src: Path, out_dir: Path, args, pack: str) -> bool:
 def main():
     args = parse_args()
     src_root, out_root = Path(args.src), Path(args.out)
-    files = [p for p in src_root.rglob("*") if p.suffix.lower() in IMPORTERS]
+    # packs often ship the same model as .glb + .fbx + .obj: keep one per name
+    best = {}
+    for p in src_root.rglob("*"):
+        ext = p.suffix.lower()
+        if ext not in IMPORTERS:
+            continue
+        key = (p.relative_to(src_root).parts[0], p.stem.lower())
+        if key not in best or PREFERENCE.index(ext) < PREFERENCE.index(best[key].suffix.lower()):
+            best[key] = p
+    files = list(best.values())
     ok = 0
     for f in sorted(files):
         pack = f.relative_to(src_root).parts[0] if f.parent != src_root else src_root.name

@@ -1,14 +1,14 @@
 # Milestones
 
-## Phase 0: proof (1 evening) ← CURRENT
-- [ ] Download 1 Kenney pack (kenney.nl), unzip into `packs/<pack-name>/`
-- [ ] `scripts/build.ps1` runs without errors
-- [ ] Add `http://127.0.0.1:8000/` as a remote library in Blender 5.3, assets appear with previews
-- [ ] Append an asset into a scene
-- [ ] Read the generated `_v1/` JSON: are there per-file hashes? Write the answer into `docs/FINDINGS.md`
+## Phase 0: proof ✅ done 17. 11. 2026
+- [x] Download 1 Kenney pack (kenney.nl), unzip into `packs/<pack-name>/`
+- [x] `scripts/build.py` runs without errors
+- [x] Add `http://127.0.0.1:8000/` as a remote library in Blender 5.3, assets appear with previews
+- [x] Append an asset into a scene
+- [x] Read the generated `_v1/` JSON: are there per-file hashes? Write the answer into `docs/FINDINGS.md`
 - **Stop condition:** if Blender refuses the library, find out why before anything else.
 
-## Phase 1: hosted CC0 game library (weekend)
+## Phase 1: hosted CC0 game library (weekend) ← CURRENT
 - [ ] More packs (Kenney, Quaternius), catalogs per pack
 - [ ] CI: headless Blender builds the library on push
 - [ ] Hosting: static (GitHub Pages / Cloudflare R2), check size limits first
