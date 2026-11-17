@@ -53,7 +53,11 @@ jobs:
       # (bl_pkg/cli/blender_ext.py ships inside the bpy wheel, stdlib only)
       - name: Build site (extensions repository + library)
         run: |
-          EXT=$(python -c "import bpy, pathlib; print(next(pathlib.Path(bpy.__file__).parent.rglob('bl_pkg/cli/blender_ext.py')))")
+          trap 'echo "::error::site build failed: $BASH_COMMAND"' ERR
+          # find_spec, not `import bpy`: importing Blender prints to stdout and would pollute $EXT
+          BPY=$(python -c "import importlib.util; print(importlib.util.find_spec('bpy').submodule_search_locations[0])")
+          EXT="$BPY/5.3/scripts/addons_core/bl_pkg/cli/blender_ext.py"
+          test -f "$EXT"
           mkdir site
           for d in extensions/*/; do python "$EXT" build --source-dir "$d" --output-dir site; done
           python "$EXT" server-generate --repo-dir site --html
