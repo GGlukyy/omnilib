@@ -33,8 +33,8 @@ jobs:
           path: |
             packs
             library
-          key: library-${{ github.run_id }}
-          restore-keys: library-
+          key: library-v2-${{ github.run_id }}
+          restore-keys: library-v2-  # bump to start from an empty cache
 
       - name: Install Blender as a Python module
         run: |

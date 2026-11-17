@@ -7,7 +7,6 @@ Server URL: env OMNILIB_ASSET_SERVER (default http://localhost:8787). Only CC0 m
 import io
 import os
 import shutil
-import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
@@ -18,7 +17,8 @@ from . import UA, get_json, safe, warn, write_meta
 URL = os.environ.get("OMNILIB_ASSET_SERVER", "http://localhost:8787").rstrip("/")
 MODELS = [".glb", ".gltf", ".fbx", ".obj"]
 PER_SEARCH = 24
-RESOLUTION = "1k"  # game assets; Poly Haven default is up to 8k (13 assets = 1.3 GB)
+RESOLUTION = "1k"  # game assets, small downloads
+MAX_BYTES = 25_000_000  # per asset; GitHub Pages allows 100 MB per file
 
 
 def list(sub):
@@ -40,15 +40,17 @@ def list(sub):
 
 
 def download(item, dest: Path):
-    base = f"{URL}/v1/assets/{urllib.parse.quote(item['id'], safe=':')}/download?resolution={RESOLUTION}&format="
+    base = f"{URL}/v1/assets/{urllib.parse.quote(item['id'], safe=':')}"
     for fmt in ("glb", "gltf", "fbx", "obj"):  # sources offer different formats (Poly Haven: no glb)
-        try:
-            with urllib.request.urlopen(urllib.request.Request(base + fmt, headers=UA), timeout=300) as r:
-                data, final_url = r.read(), r.geturl()  # 302 to a single file, or a zip with companions
-            break
-        except urllib.error.HTTPError as e:
-            if e.code != 404:
-                raise
+        query = f"?resolution={RESOLUTION}&format={fmt}"
+        files = get_json(f"{base}/files{query}")
+        if not files.get("files"):
+            continue
+        if (files.get("totalBytes") or 0) > MAX_BYTES:  # photoscans: 100 MB of geometry, too big for Pages
+            raise ValueError(f"{files['totalBytes'] / 1e6:.0f} MB, over the {MAX_BYTES / 1e6:.0f} MB limit")
+        with urllib.request.urlopen(urllib.request.Request(f"{base}/download{query}", headers=UA), timeout=300) as r:
+            data, final_url = r.read(), r.geturl()  # 302 to a single file, or a zip with companions
+        break
     else:
         raise ValueError("no glb/gltf/fbx/obj download")
     name = safe(item["id"])
