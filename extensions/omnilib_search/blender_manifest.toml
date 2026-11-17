@@ -1,0 +1,25 @@
+schema_version = "1.0.0"
+
+id = "omnilib_search"
+version = "0.1.0"
+name = "omnilib"
+tagline = "Search Poly Pizza, Sketchfab and 3d-asset-server in one panel"
+maintainer = "GGlukyy"
+type = "add-on"
+
+website = "https://github.com/GGlukyy/omnilib"
+tags = ["3D View", "Import-Export"]
+
+blender_version_min = "4.2.0"
+
+license = [
+  "SPDX:GPL-3.0-or-later",
+]
+
+copyright = [
+  "2026 omnilib contributors",
+]
+
+[permissions]
+network = "Search and download models with your own API keys"
+files = "Import downloaded models via a temporary folder"
