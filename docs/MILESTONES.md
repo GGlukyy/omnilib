@@ -9,8 +9,14 @@
 - **Stop condition:** if Blender refuses the library, find out why before anything else.
 
 ## Phase 1: hosted CC0 game library (weekend) ← CURRENT
-- [ ] More packs (Kenney, Quaternius), catalogs per pack
-- [ ] CI: headless Blender builds the library on push
+- [x] Source adapters `sources/<name>.py` (`list()` + `download()`), chosen in `subscriptions.json`
+- [x] `local` (zips/folders in `packs/local/`), `asset_server` (3d-asset-server, CC0, saved searches)
+- [x] `polypizza` (official API v1.1: Kenney, Quaternius by author + searches); skipped without `POLY_PIZZA_KEY`
+- [x] `scripts/pipeline.py`: download only new items (cache `packs/.state.json`) → `build.py`
+- [x] Catalogs `<source>/<pack>`, author/license/attribution per asset, `--public` = CC0 only
+- [x] CI: manual + weekly, `bpy==5.3.0`, library as artifact (`build-library` workflow)
+- [ ] Add `POLY_PIZZA_KEY` secret, check first full Kenney + Quaternius build (time, size)
+- [ ] Remove the temporary `push` trigger from the workflow before merging `phase-1`
 - [ ] Hosting: static (GitHub Pages / Cloudflare R2), check size limits first
 - [ ] README with "paste this URL into Blender"
 - **Stop condition:** am I using it in my own projects? If not, stop.
